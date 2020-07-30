@@ -1,4 +1,4 @@
-import { findConfigFile, sys } from "typescript"
+import { findConfigFile, sys, nodeModuleNameResolver } from "typescript"
 import fs from "fs"
 import path from "path"
 import json5 from "json5"
@@ -16,13 +16,11 @@ interface Mapping {
 interface PluginOptions {
 	tsConfigPath: string
 	logLevel: "warn" | "debug" | "none"
-	extensions: string[]
 }
 
 export const tsPathsResolve: Plugin = ({
 	tsConfigPath = process.env["TS_NODE_PROJECT"] || findConfigFile(".", sys.fileExists) || "tsconfig.json",
 	logLevel = "warn",
-	extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs"],
 }: Partial<PluginOptions> = {}) => {
 	const pluginName = "ts-paths"
 	const escapeRegExp = (str: string) => str.replace(/[-\/\\^$*+?\.()[\]{}]/g, "\\$&")
@@ -73,7 +71,8 @@ export const tsPathsResolve: Plugin = ({
 				const resolved = findMapping({
 					mapping,
 					source,
-					extensions,
+					importer,
+					compilerOptions,
 					baseUrl,
 				})
 				if (resolved) {
@@ -99,12 +98,14 @@ const getTsConfig = (configPath: string): { compilerOptions: CompilerOptions } =
 const findMapping = ({
 	mapping,
 	source,
-	extensions,
+	importer,
+	compilerOptions,
 	baseUrl = ".",
 }: {
 	mapping: Mapping
 	source: string
-	extensions: string[]
+	importer: string
+	compilerOptions: CompilerOptions
 	baseUrl: string
 }) => {
 	const match = source.match(mapping.pattern)
@@ -114,13 +115,12 @@ const findMapping = ({
 	for (const target of mapping.targets) {
 		const newPath = mapping.wildcard ? target.replace("*", match[1]) : target
 		const answer = path.resolve(baseUrl, newPath)
+		const { resolvedModule } = nodeModuleNameResolver(answer, importer, compilerOptions, sys)
+		if (resolvedModule) {
+			return resolvedModule.resolvedFileName
+		}
 		if (fs.existsSync(answer)) {
 			return answer
-		}
-		for (const ext of extensions) {
-			if (fs.existsSync(answer + ext)) {
-				return answer + ext
-			}
 		}
 	}
 	return ""
