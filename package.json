@@ -1,0 +1,35 @@
+{
+  "name": "rollup-plugin-ts-paths-resolve",
+  "version": "1.0.0",
+  "license": "MIT",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.es.js",
+  "types": "typings/index.d.ts",
+  "author": "lightyen",
+  "repository": {
+    "url": "https://github.com/lightyen/rollup-plugin-ts-paths-resolve"
+  },
+  "homepage": "https://github.com/lightyen/rollup-plugin-ts-paths-resolve#readme",
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "keywords": [
+    "rollup",
+    "plugin",
+    "typescript",
+    "paths"
+  ],
+  "dependencies": {
+    "json5": "^2.1.3",
+    "typescript": "^3.9.7"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^14.0.0",
+    "@rollup/plugin-node-resolve": "^8.4.0",
+    "@types/json5": "^0.0.30",
+    "@types/node": "^14.0.27",
+    "@types/rollup": "^0.54.0",
+    "rollup": "^2.23.0",
+    "rollup-plugin-typescript2": "^0.27.1"
+  }
+}

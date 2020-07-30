@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "removeComments": true,
+    "target": "es5",
+    "baseUrl": "."
+  },
+  "include": ["src/**/*"]
+}
