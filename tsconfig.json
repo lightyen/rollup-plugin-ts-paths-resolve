@@ -7,6 +7,8 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "removeComments": true,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
     "target": "es5",
     "baseUrl": "."
   },

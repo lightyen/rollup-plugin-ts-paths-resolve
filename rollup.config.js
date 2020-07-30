@@ -20,6 +20,6 @@ export default [
 			},
 		],
 		plugins: [typescript(), nodeResolve(), commonjs()],
-		external: ["fs", "path"],
+		external: ["fs", "path", "typescript"],
 	},
 ]

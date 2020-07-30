@@ -1,10 +1,17 @@
-import { findConfigFile, sys, nodeModuleNameResolver } from "typescript"
-import fs from "fs"
-import path from "path"
-import json5 from "json5"
+import type { CompilerHost, CompilerOptions, ModuleResolutionCache } from "typescript"
+import {
+	ModuleResolutionKind,
+	sys,
+	findConfigFile,
+	readConfigFile,
+	resolveModuleName,
+	createCompilerHost,
+	createModuleResolutionCache,
+} from "typescript"
 
 import type { Plugin } from "rollup"
-import type { CompilerOptions } from "typescript"
+import fs from "fs"
+import path from "path"
 
 interface Mapping {
 	wildcard: boolean
@@ -23,44 +30,11 @@ export const tsPathsResolve: Plugin = ({
 	logLevel = "warn",
 }: Partial<PluginOptions> = {}) => {
 	const pluginName = "ts-paths"
-	const escapeRegExp = (str: string) => str.replace(/[-\/\\^$*+?\.()[\]{}]/g, "\\$&")
 	const { compilerOptions } = getTsConfig(tsConfigPath)
-	let baseUrl = path.resolve(path.dirname(tsConfigPath), compilerOptions?.baseUrl || ".")
-	const paths = compilerOptions.paths || {}
-	const mappings: Mapping[] = []
-	if (logLevel != "none") {
-		if (Object.keys(paths).length === 0) {
-			console.log(`\x1b[1;33m(!) [${pluginName}]: typescript path alias are empty.\x1b[0m`)
-		}
-	}
-	for (const alias of Object.keys(paths)) {
-		if (alias === "*") {
-			if (logLevel != "none") {
-				console.log(`\x1b[1;33m(!) [${pluginName}]: alias "*" is not accepted.\x1b[0m`)
-			}
-			continue
-		}
-		const wildcard = alias.indexOf("*") !== -1
-		const excapedAlias = escapeRegExp(alias)
-		const targets = paths[alias].filter(target => {
-			if (target.startsWith("@types") || target.endsWith(".d.ts")) {
-				if (logLevel != "none") {
-					console.log(`\x1b[1;33m(!) [${pluginName}]: type defined ${target} is ignored.\x1b[0m`)
-				}
-				return false
-			}
-			return true
-		})
-		const pattern = wildcard
-			? new RegExp(`^${excapedAlias.replace("\\*", "(.*)")}`)
-			: new RegExp(`^${excapedAlias}$`)
-		mappings.push({ wildcard, alias, pattern, targets })
-	}
-	if (logLevel == "debug") {
-		for (const mapping of mappings) {
-			console.log(`\x1b[36m[${pluginName}]\x1b[0m`, "pattern:", mapping.pattern, "targets:", mapping.targets)
-		}
-	}
+	const baseUrl = path.resolve(path.dirname(tsConfigPath), compilerOptions.baseUrl)
+	const mappings = createMappings(compilerOptions, pluginName, logLevel)
+	const host = createCompilerHost(compilerOptions)
+	const cache = createModuleResolutionCache(host.getCurrentDirectory(), host.getCanonicalFileName, compilerOptions)
 	return {
 		name: pluginName,
 		resolveId: (source: string, importer: string) => {
@@ -72,11 +46,13 @@ export const tsPathsResolve: Plugin = ({
 					mapping,
 					source,
 					importer,
-					compilerOptions,
 					baseUrl,
+					compilerOptions,
+					host,
+					cache,
 				})
 				if (resolved) {
-					if (logLevel == "debug") {
+					if (logLevel === "debug") {
 						console.log(`\x1b[36m[${pluginName}]\x1b[0m`, source, "->", resolved)
 					}
 					return resolved
@@ -88,25 +64,84 @@ export const tsPathsResolve: Plugin = ({
 }
 
 const getTsConfig = (configPath: string): { compilerOptions: CompilerOptions } => {
-	const configJson = sys.readFile(configPath)
-	if (!configJson) {
-		throw Error(`config is not found: ${configPath}`)
+	const { config, error } = readConfigFile(configPath, sys.readFile)
+	if (error) {
+		throw new Error(error.messageText.toString())
 	}
-	return json5.parse(configJson)
+	let { compilerOptions } = config
+	compilerOptions = compilerOptions || {}
+	compilerOptions.baseUrl = compilerOptions.baseUrl || "."
+	switch (String.prototype.toLocaleLowerCase(compilerOptions.moduleResolution)) {
+		case "classic":
+			compilerOptions.moduleResolution = ModuleResolutionKind.Classic
+			break
+		default:
+			compilerOptions.moduleResolution = ModuleResolutionKind.NodeJs
+			break
+	}
+	return { compilerOptions }
+}
+
+const createMappings = (
+	compilerOptions: CompilerOptions,
+	pluginName: string,
+	logLevel: "warn" | "debug" | "none",
+): Mapping[] => {
+	const mappings: Mapping[] = []
+	const paths = compilerOptions.paths || {}
+	const escapeRegExp = (str: string) => str.replace(/[-\/\\^$*+?\.()[\]{}]/g, "\\$&")
+	if (logLevel !== "none") {
+		if (Object.keys(paths).length === 0) {
+			console.log(`\x1b[1;33m(!) [${pluginName}]: typescript path alias are empty.\x1b[0m`)
+		}
+	}
+	for (const alias of Object.keys(paths)) {
+		if (alias === "*") {
+			if (logLevel !== "none") {
+				console.log(`\x1b[1;33m(!) [${pluginName}]: alias "*" is not accepted.\x1b[0m`)
+			}
+			continue
+		}
+		const wildcard = alias.indexOf("*") !== -1
+		const excapedAlias = escapeRegExp(alias)
+		const targets = paths[alias].filter(target => {
+			if (target.startsWith("@types") || target.endsWith(".d.ts")) {
+				if (logLevel === "debug") {
+					console.log(`\x1b[1;33m(!) [${pluginName}]: type defined ${target} is ignored.\x1b[0m`)
+				}
+				return false
+			}
+			return true
+		})
+		const pattern = wildcard
+			? new RegExp(`^${excapedAlias.replace("\\*", "(.*)")}`)
+			: new RegExp(`^${excapedAlias}$`)
+		mappings.push({ wildcard, alias, pattern, targets })
+	}
+	if (logLevel === "debug") {
+		for (const mapping of mappings) {
+			console.log(`\x1b[36m[${pluginName}]\x1b[0m`, "pattern:", mapping.pattern, "targets:", mapping.targets)
+		}
+	}
+	return mappings
 }
 
 const findMapping = ({
 	mapping,
 	source,
 	importer,
+	baseUrl,
 	compilerOptions,
-	baseUrl = ".",
+	host,
+	cache,
 }: {
 	mapping: Mapping
 	source: string
 	importer: string
-	compilerOptions: CompilerOptions
 	baseUrl: string
+	compilerOptions: CompilerOptions
+	host: CompilerHost
+	cache: ModuleResolutionCache
 }) => {
 	const match = source.match(mapping.pattern)
 	if (!match) {
@@ -115,7 +150,7 @@ const findMapping = ({
 	for (const target of mapping.targets) {
 		const newPath = mapping.wildcard ? target.replace("*", match[1]) : target
 		const answer = path.resolve(baseUrl, newPath)
-		const { resolvedModule } = nodeModuleNameResolver(answer, importer, compilerOptions, sys)
+		const { resolvedModule } = resolveModuleName(answer, importer, compilerOptions, host, cache)
 		if (resolvedModule) {
 			return resolvedModule.resolvedFileName
 		}
