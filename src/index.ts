@@ -1,4 +1,4 @@
-import type { CompilerHost, CompilerOptions, ModuleResolutionCache } from "typescript"
+import type { CompilerHost, CompilerOptions } from "typescript"
 import {
 	ModuleResolutionKind,
 	sys,
@@ -6,7 +6,6 @@ import {
 	readConfigFile,
 	resolveModuleName,
 	createCompilerHost,
-	createModuleResolutionCache,
 } from "typescript"
 
 import type { Plugin } from "rollup"
@@ -34,7 +33,6 @@ export const tsPathsResolve: Plugin = ({
 	const baseUrl = path.resolve(path.dirname(tsConfigPath), compilerOptions.baseUrl)
 	const mappings = createMappings(compilerOptions, pluginName, logLevel)
 	const host = createCompilerHost(compilerOptions)
-	const cache = createModuleResolutionCache(host.getCurrentDirectory(), host.getCanonicalFileName, compilerOptions)
 	return {
 		name: pluginName,
 		resolveId: (source: string, importer: string) => {
@@ -49,7 +47,6 @@ export const tsPathsResolve: Plugin = ({
 					baseUrl,
 					compilerOptions,
 					host,
-					cache,
 				})
 				if (resolved) {
 					if (logLevel === "debug") {
@@ -133,7 +130,6 @@ const findMapping = ({
 	baseUrl,
 	compilerOptions,
 	host,
-	cache,
 }: {
 	mapping: Mapping
 	source: string
@@ -141,7 +137,6 @@ const findMapping = ({
 	baseUrl: string
 	compilerOptions: CompilerOptions
 	host: CompilerHost
-	cache: ModuleResolutionCache
 }) => {
 	const match = source.match(mapping.pattern)
 	if (!match) {
@@ -150,7 +145,7 @@ const findMapping = ({
 	for (const target of mapping.targets) {
 		const newPath = mapping.wildcard ? target.replace("*", match[1]) : target
 		const answer = path.resolve(baseUrl, newPath)
-		const { resolvedModule } = resolveModuleName(answer, importer, compilerOptions, host, cache)
+		const { resolvedModule } = resolveModuleName(answer, importer, compilerOptions, host)
 		if (resolvedModule) {
 			return resolvedModule.resolvedFileName
 		}
