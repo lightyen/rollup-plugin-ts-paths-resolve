@@ -14,10 +14,11 @@ import tsPaths from "rollup-plugin-ts-paths-resolve";
 
 export default {
   plugins: [
-	tsPaths(),
-	// you also need @rollup/plugin-node-resolve to handle non-alias
+    tsPaths(),
+    // you also need **@rollup/plugin-node-resolve** to handle non-alias
     nodeResolve(),
-	commonjs(),
-	...
+    commonjs(),
+    ...
+  ]
 }
 ```
