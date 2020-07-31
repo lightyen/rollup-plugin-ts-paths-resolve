@@ -1,6 +1,6 @@
 {
   "name": "rollup-plugin-ts-paths-resolve",
-  "version": "1.2.6",
+  "version": "1.2.8",
   "description": "A rollup plugin for resolving tsconfig-paths",
   "license": "MIT",
   "main": "dist/index.cjs.js",
@@ -30,5 +30,12 @@
     "rollup": "^2.23.0",
     "rollup-plugin-typescript2": "^0.27.1",
     "typescript": "^3.9.7"
-  }
+  },
+  "files": [
+    "dist",
+    "typings",
+    "src",
+    "LICENSE",
+    "README.md"
+  ]
 }
