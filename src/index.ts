@@ -13,9 +13,11 @@ import fs from "fs"
 import path from "path"
 
 interface Mapping {
-	wildcard: boolean
-	alias: string
-	pattern: RegExp
+	alias: {
+		source: string
+		wildcard: boolean
+		pattern: RegExp
+	}
 	targets: string[]
 }
 
@@ -68,7 +70,7 @@ const getTsConfig = (configPath: string): { compilerOptions: CompilerOptions } =
 	let { compilerOptions } = config
 	compilerOptions = compilerOptions || {}
 	compilerOptions.baseUrl = compilerOptions.baseUrl || "."
-	switch (String.prototype.toLocaleLowerCase(compilerOptions.moduleResolution)) {
+	switch (String.prototype.toLocaleLowerCase.call(compilerOptions.moduleResolution)) {
 		case "classic":
 			compilerOptions.moduleResolution = ModuleResolutionKind.Classic
 			break
@@ -84,23 +86,16 @@ const createMappings = (
 	pluginName: string,
 	logLevel: "warn" | "debug" | "none",
 ): Mapping[] => {
+	const escapeRegExp = (str: string) => str.replace(/[-\/\\^$*+?\.()[\]{}]/g, "\\$&")
 	const mappings: Mapping[] = []
 	const paths = compilerOptions.paths || {}
-	const escapeRegExp = (str: string) => str.replace(/[-\/\\^$*+?\.()[\]{}]/g, "\\$&")
-	if (logLevel !== "none") {
-		if (Object.keys(paths).length === 0) {
-			console.log(`\x1b[1;33m(!) [${pluginName}]: typescript path alias are empty.\x1b[0m`)
-		}
+
+	if (logLevel !== "none" && Object.keys(paths).length === 0) {
+		console.log(`\x1b[1;33m(!) [${pluginName}]: typescript path alias are empty.\x1b[0m`)
 	}
+
 	for (const alias of Object.keys(paths)) {
-		if (alias === "*") {
-			if (logLevel !== "none") {
-				console.log(`\x1b[1;33m(!) [${pluginName}]: alias "*" is not accepted.\x1b[0m`)
-			}
-			continue
-		}
 		const wildcard = alias.indexOf("*") !== -1
-		const excapedAlias = escapeRegExp(alias)
 		const targets = paths[alias].filter(target => {
 			if (target.startsWith("@types") || target.endsWith(".d.ts")) {
 				if (logLevel === "debug") {
@@ -110,14 +105,26 @@ const createMappings = (
 			}
 			return true
 		})
+		if (alias === "*") {
+			mappings.push({ alias: { source: alias, wildcard, pattern: /(.*)/ }, targets })
+			continue
+		}
+		const excapedAlias = escapeRegExp(alias)
 		const pattern = wildcard
 			? new RegExp(`^${excapedAlias.replace("\\*", "(.*)")}`)
 			: new RegExp(`^${excapedAlias}$`)
-		mappings.push({ wildcard, alias, pattern, targets })
+		mappings.push({ alias: { source: alias, wildcard, pattern }, targets })
 	}
+
 	if (logLevel === "debug") {
 		for (const mapping of mappings) {
-			console.log(`\x1b[36m[${pluginName}]\x1b[0m`, "pattern:", mapping.pattern, "targets:", mapping.targets)
+			console.log(
+				`\x1b[36m[${pluginName}]\x1b[0m`,
+				"pattern:",
+				mapping.alias.pattern,
+				"targets:",
+				mapping.targets,
+			)
 		}
 	}
 	return mappings
@@ -138,13 +145,16 @@ const findMapping = ({
 	compilerOptions: CompilerOptions
 	host: CompilerHost
 }) => {
-	const match = source.match(mapping.pattern)
+	const match = source.match(mapping.alias.pattern)
 	if (!match) {
 		return ""
 	}
 	for (const target of mapping.targets) {
-		const newPath = mapping.wildcard ? target.replace("*", match[1]) : target
-		const answer = path.resolve(baseUrl, newPath)
+		let predicted = target
+		if (mapping.alias.wildcard) {
+			predicted = target.replace("*", match[1])
+		}
+		const answer = path.resolve(baseUrl, predicted)
 		const { resolvedModule } = resolveModuleName(answer, importer, compilerOptions, host)
 		if (resolvedModule) {
 			return resolvedModule.resolvedFileName
