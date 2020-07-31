@@ -107,7 +107,7 @@ const createMappings = (
 	for (const alias of Object.keys(paths)) {
 		const wildcard = alias.indexOf("*") !== -1
 		const targets = paths[alias].filter(target => {
-			if (target.indexOf("@types") || target.endsWith(".d.ts")) {
+			if (target.indexOf("@types") != -1 || target.endsWith(".d.ts")) {
 				if (logLevel === "debug") {
 					console.log(`\x1b[1;33m(!) [${pluginName}]: type defined ${target} is ignored.\x1b[0m`)
 				}
