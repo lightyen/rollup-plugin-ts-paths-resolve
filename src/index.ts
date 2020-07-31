@@ -155,6 +155,9 @@ const findMapping = ({
 			predicted = target.replace("*", match[1])
 		}
 		const answer = path.resolve(baseUrl, predicted)
+		if (answer.indexOf("node_modules/") != -1) {
+			return answer
+		}
 		const { resolvedModule } = resolveModuleName(answer, importer, compilerOptions, host)
 		if (resolvedModule) {
 			return resolvedModule.resolvedFileName

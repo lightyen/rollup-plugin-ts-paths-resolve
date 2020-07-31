@@ -1,6 +1,6 @@
 # rollup-plugin-ts-paths-resolve
 
-Resolve tsconfig paths alias
+A rollup plugin for resolving tsconfig-paths
 
 ```sh
 yarn add -D rollup-plugin-ts-paths-resolve
@@ -15,7 +15,7 @@ import tsPaths from "rollup-plugin-ts-paths-resolve";
 export default {
   plugins: [
     tsPaths(),
-    // you also need **@rollup/plugin-node-resolve** to handle non-alias
+    // you also need @rollup/plugin-node-resolve to handle non-alias
     nodeResolve(),
     commonjs(),
     ...
