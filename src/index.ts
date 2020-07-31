@@ -8,9 +8,10 @@ import {
 	createCompilerHost,
 } from "typescript"
 
-import type { Plugin } from "rollup"
+import type { Plugin, ResolveIdResult } from "rollup"
 import fs from "fs"
 import path from "path"
+import nodeResolve from "@rollup/plugin-node-resolve"
 
 interface Mapping {
 	alias: {
@@ -21,14 +22,20 @@ interface Mapping {
 	targets: string[]
 }
 
+interface Fallback {
+	resolveId?: (source: string, importer?: string) => Promise<ResolveIdResult> | ResolveIdResult
+}
+
 interface PluginOptions {
 	tsConfigPath: string
 	logLevel: "warn" | "debug" | "none"
+	fallback: Fallback
 }
 
 export const tsPathsResolve: Plugin = ({
 	tsConfigPath = process.env["TS_NODE_PROJECT"] || findConfigFile(".", sys.fileExists) || "tsconfig.json",
 	logLevel = "warn",
+	fallback = nodeResolve(),
 }: Partial<PluginOptions> = {}) => {
 	const pluginName = "ts-paths"
 	const { compilerOptions } = getTsConfig(tsConfigPath)
@@ -42,7 +49,7 @@ export const tsPathsResolve: Plugin = ({
 				return null
 			}
 			for (const mapping of mappings) {
-				const resolved = findMapping({
+				const [resolved, nodeModules] = findMapping({
 					mapping,
 					source,
 					importer,
@@ -54,10 +61,13 @@ export const tsPathsResolve: Plugin = ({
 					if (logLevel === "debug") {
 						console.log(`\x1b[36m[${pluginName}]\x1b[0m`, source, "->", resolved)
 					}
+					if (nodeModules) {
+						return fallback.resolveId(resolved, importer)
+					}
 					return resolved
 				}
 			}
-			return null
+			return fallback.resolveId(source, importer)
 		},
 	}
 }
@@ -144,10 +154,10 @@ const findMapping = ({
 	baseUrl: string
 	compilerOptions: CompilerOptions
 	host: CompilerHost
-}) => {
+}): [string, boolean] => {
 	const match = source.match(mapping.alias.pattern)
 	if (!match) {
-		return ""
+		return ["", false]
 	}
 	for (const target of mapping.targets) {
 		let predicted = target
@@ -156,17 +166,17 @@ const findMapping = ({
 		}
 		const answer = path.resolve(baseUrl, predicted)
 		if (answer.indexOf("node_modules/") != -1) {
-			return answer
+			return [answer, true]
 		}
 		const { resolvedModule } = resolveModuleName(answer, importer, compilerOptions, host)
 		if (resolvedModule) {
-			return resolvedModule.resolvedFileName
+			return [resolvedModule.resolvedFileName, false]
 		}
 		if (fs.existsSync(answer)) {
-			return answer
+			return [answer, false]
 		}
 	}
-	return ""
+	return ["", false]
 }
 
 export default tsPathsResolve

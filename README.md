@@ -10,13 +10,12 @@ rollup.config.js
 
 ```js
 
-import tsPaths from "rollup-plugin-ts-paths-resolve";
+import tsPathsResolve from "rollup-plugin-ts-paths-resolve";
 
 export default {
   plugins: [
-    tsPaths(),
-    // you also need @rollup/plugin-node-resolve to handle non-alias
-    nodeResolve(),
+    tsPathsResolve(),
+    // nodeResolve(),
     commonjs(),
     ...
   ]
