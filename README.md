@@ -21,6 +21,35 @@ export default {
 }
 ```
 
+Example tsconfig.json
+
+```json
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "target": "esnext",
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "types": ["react", "webpack-env"],
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./*"]
+    }
+  }
+}
+```
+
+And then you can import alias instead of annoying path
+
+```js
+// import App from "../../../../App"
+import App from "~/App"
+
+...
+
+```
+
 ## Options
 
 ### tsConfigPath _(string)_
@@ -39,3 +68,4 @@ Log level when the plugin is running.
 ## reference
 
 - https://www.typescriptlang.org/docs/handbook/module-resolution.html#path-mapping
+- https://github.com/microsoft/TypeScript/issues/5039
