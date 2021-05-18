@@ -10,12 +10,14 @@ rollup.config.js
 
 ```js
 
+import commonjs from "@rollup/plugin-commonjs"
+// import nodeResolve from "@rollup/plugin-node-resolve";
 import tsPathsResolve from "rollup-plugin-ts-paths-resolve";
 
 export default {
   plugins: [
+	// nodeResolve(),
     tsPathsResolve(),
-    // nodeResolve(),
     commonjs(),
   ]
 }
@@ -40,7 +42,7 @@ Example tsconfig.json
 }
 ```
 
-And then you can import alias instead of annoying path
+Then you can import alias instead of annoying path
 
 ```js
 // import App from "../../../../App"

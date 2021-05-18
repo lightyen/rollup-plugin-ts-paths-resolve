@@ -28,7 +28,7 @@ interface PluginOptions {
 export const tsPathsResolve: Plugin = ({
 	tsConfigPath = process.env["TS_NODE_PROJECT"] || ts.findConfigFile(".", ts.sys.fileExists) || "tsconfig.json",
 	logLevel = "warn",
-	fallback = nodeResolve(),
+	fallback = nodeResolve() as unknown as Fallback,
 }: Partial<PluginOptions> = {}) => {
 	const pluginName = "ts-paths"
 	const compilerOptions = getTsConfig(tsConfigPath, logLevel, pluginName)
